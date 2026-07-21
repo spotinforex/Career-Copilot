@@ -147,7 +147,7 @@ class CareerCopilotDB:
                 source_id UUID NOT NULL,
                 memory_type STRING NOT NULL,
                 text_summary STRING NOT NULL,
-                embedding VECTOR(1536),
+                embedding VECTOR(384),
                 is_pinned BOOL DEFAULT false,
                 updated_at TIMESTAMPTZ DEFAULT now(),
                 VECTOR INDEX (user_id, embedding)

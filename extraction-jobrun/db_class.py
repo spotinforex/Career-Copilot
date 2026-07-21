@@ -4,6 +4,7 @@ import json
 import psycopg2
 from psycopg2.extras import RealDictCursor, execute_values
 from dotenv import load_dotenv
+from pgvector.psycopg2 import register_vector
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -18,6 +19,7 @@ class CareerCopilotDB:
     def connect(self):
         logger.info("Connecting to database")
         self.conn = psycopg2.connect(self.database_url)
+        register_vector(self.conn)
         logger.info("Successfully connected to database")
         return self
 
@@ -125,9 +127,6 @@ class CareerCopilotDB:
 
     # ---------- table-specific helpers ----------
 
-    def create_user(self, email: str):
-        return self.insert("users", {"email": email})
-
     def get_current_resume(self, user_id: str, role_tag: str):
         return self.fetch_one(
             "resumes",
@@ -157,48 +156,6 @@ class CareerCopilotDB:
             row = cur.fetchone()
             self.conn.commit()
             return row
-
-    def add_project(self, user_id: str, title: str, description: str,
-                     skills_used: list[str] = None, relevant_roles: list[str] = None):
-        return self.insert("projects", {
-            "user_id": user_id,
-            "title": title,
-            "description": description,
-            "skills_used": skills_used or [],
-            "relevant_roles": relevant_roles or []
-        })
-
-    def add_skill(self, user_id: str, name: str, source: str = "stated"):
-        """Insert a skill, ignoring if it already exists for this user."""
-        query = """
-            INSERT INTO skills (user_id, name, source)
-            VALUES (%s, %s, %s)
-            ON CONFLICT (user_id, name) DO NOTHING
-            RETURNING *
-        """
-        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(query, (user_id, name, source))
-            row = cur.fetchone()
-            self.conn.commit()
-            return row
-
-    def log_application(self, user_id: str, company: str, role_title: str,
-                         resume_id: str = None, cover_letter_id: str = None):
-        return self.insert("applications", {
-            "user_id": user_id,
-            "company": company,
-            "role_title": role_title,
-            "resume_id": resume_id,
-            "cover_letter_id": cover_letter_id
-        })
-
-    def save_conversation_turn(self, user_id: str, session_id: str, role: str, content: str):
-        return self.insert("conversations", {
-            "user_id": user_id,
-            "session_id": session_id,
-            "role": role,
-            "content": content
-        })
 
     # ---------- embeddings / semantic search ----------
 
@@ -238,3 +195,68 @@ class CareerCopilotDB:
     def get_pinned_memories(self, user_id: str):
         """Always-include memories (e.g. career goal) regardless of similarity score."""
         return self.fetch_all("memory_embeddings", where={"user_id": user_id, "is_pinned": True})
+
+    def memory_exists(
+    self,
+    user_id: str,
+    embedding: list[float],
+    memory_type: str,
+    threshold: float = 0.10,
+    ):
+        """
+        Returns True if a very similar memory already exists.
+        """
+
+        query = """
+            SELECT embedding <=> %s::VECTOR AS distance
+            FROM memory_embeddings
+            WHERE user_id = %s
+            AND memory_type = %s
+            ORDER BY embedding <=> %s::VECTOR
+            LIMIT 1
+        """
+
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                query,
+                (
+                    embedding,
+                    user_id,
+                    memory_type,
+                    embedding,
+                ),
+            )
+
+            row = cur.fetchone()
+
+            if row is None:
+                return False
+
+            return row["distance"] < threshold
+        
+    def append_resume_edit(
+        self,
+        user_id: str,
+        role_tag: str,
+        edit: str,
+        ):
+            resume = self.get_current_resume(user_id, role_tag)
+
+            if not resume:
+                return None
+
+            content = resume["content"]
+
+            if isinstance(content, str):
+                content = json.loads(content)
+
+            content.setdefault("edits", [])
+            content["edits"].append(edit)
+
+            self.update(
+                "resumes",
+                {"content": json.dumps(content)},
+                {"id": resume["id"]},
+            )
+
+            return resume

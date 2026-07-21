@@ -11,3 +11,5 @@ wheels/
 
 .env
 *.txt
+*.pem
+print_stored.py
