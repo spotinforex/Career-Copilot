@@ -1,0 +1,42 @@
+# Virtual environments / dependency caches
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# uv / pip artifacts
+.uv_cache/
+
+# Secrets - never let these into the build context or image layers
+.env
+.env.*
+*.pem
+*.key
+
+# Version control
+.git/
+.gitignore
+
+# Tests, local scripts, and dev tooling not needed at runtime
+test_*.py
+*_test.py
+.pytest_cache/
+print_stored.py
+
+# Editor/OS cruft
+.vscode/
+.idea/
+*.log
+.DS_Store
+Thumbs.db
+
+# Docker itself
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+create_tables_db.py
+schema.txt
+
+

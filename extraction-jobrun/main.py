@@ -1,11 +1,25 @@
-import json, os
+import json
 from db_class import CareerCopilotDB
 from agent import run_extraction_agent
 from sentence_transformers import SentenceTransformer
-from dotenv import load_dotenv
-load_dotenv()
+'''from dotenv import load_dotenv
+load_dotenv()'''
 
-url=os.getenv("DATABASE_URL")
+import boto3
+from botocore.exceptions import ClientError
+
+def get_secret(secret_name, region_name="us-east-2"):
+    session = boto3.session.Session()
+    client = session.client(service_name='secretsmanager', region_name=region_name)
+    try:
+        response = client.get_secret_value(SecretId=secret_name)
+    except ClientError as e:
+        raise RuntimeError(f"Could not retrieve secret '{secret_name}': {e}") from e
+    return response["SecretString"]
+
+secrets = get_secret("career-copilot-prod")
+
+url = secrets['DATABASE_URL']
 
 db = CareerCopilotDB(url).connect()
 

@@ -11,8 +11,24 @@ load_dotenv()
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
+import boto3
+from botocore.exceptions import ClientError
+
+def get_secret(secret_name, region_name="us-east-2"):
+    session = boto3.session.Session()
+    client = session.client(service_name='secretsmanager', region_name=region_name)
+    try:
+        response = client.get_secret_value(SecretId=secret_name)
+    except ClientError as e:
+        raise RuntimeError(f"Could not retrieve secret '{secret_name}': {e}") from e
+    return response["SecretString"]
+
+secrets = get_secret("career-copilot-prod")
+
+api_key = secrets['DASHSCOPE_API_KEY']
+
 client = OpenAI(
-    api_key=os.getenv("DASHSCOPE_API_KEY"),
+    api_key=api_key,
     base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
 )
 
