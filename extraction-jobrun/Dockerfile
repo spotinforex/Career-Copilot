@@ -29,31 +29,4 @@ RUN mkdir -p /var/task/certs && \
       -o /var/task/certs/root.crt && \
     test -f /var/task/certs/root.crt
 
-# Download and save embedding model into the image
-RUN mkdir -p /var/task/models && \
-    python - <<'PY'
-from sentence_transformers import SentenceTransformer
-
-model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-model.save("/var/task/models/all-MiniLM-L6-v2")
-print("Model saved successfully.")
-PY
-
-# Verify model files exist
-RUN python - <<'PY'
-import os
-
-for root, _, files in os.walk("/var/task/models"):
-    for f in files:
-        print(os.path.join(root, f))
-PY
-
-
-# Offline mode
-ENV HF_HOME=/var/task/.cache/huggingface
-ENV TRANSFORMERS_CACHE=/var/task/.cache/huggingface
-ENV HF_HUB_CACHE=/var/task/.cache/huggingface
-ENV HF_HUB_OFFLINE=1
-ENV TRANSFORMERS_OFFLINE=1
-
 CMD ["main.handler"]
