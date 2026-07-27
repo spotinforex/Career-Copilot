@@ -34,7 +34,13 @@ print("Model saved successfully.")
 PY
 
 # Verify model files exist
-RUN find /var/task/models -type f
+RUN python - <<'PY'
+import os
+
+for root, _, files in os.walk("/var/task/models"):
+    for f in files:
+        print(os.path.join(root, f))
+PY
 
 # Copy application code
 COPY main.py .
