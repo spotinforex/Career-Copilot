@@ -16,6 +16,12 @@ RUN pip install --no-cache-dir \
     --extra-index-url https://download.pytorch.org/whl/cpu \
     -r requirements.txt
 
+# Copy application code
+COPY main.py .
+COPY db_class.py .
+COPY agent.py .
+COPY extraction_prompt.txt .
+
 # Download CockroachDB certificate
 RUN mkdir -p /var/task/certs && \
     curl -L \
@@ -42,11 +48,6 @@ for root, _, files in os.walk("/var/task/models"):
         print(os.path.join(root, f))
 PY
 
-# Copy application code
-COPY main.py .
-COPY db_class.py .
-COPY agent.py .
-COPY extraction_prompt.txt .
 
 # Offline mode
 ENV HF_HOME=/var/task/.cache/huggingface
