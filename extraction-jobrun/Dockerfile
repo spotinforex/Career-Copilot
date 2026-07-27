@@ -28,5 +28,10 @@ RUN mkdir -p /var/task/certs && \
       https://cockroachlabs.cloud/clusters/5969aec4-f6b8-4bd6-9180-dcad541c29ab/cert \
       -o /var/task/certs/root.crt && \
     test -f /var/task/certs/root.crt
+    
+ENV HF_HOME=/tmp/huggingface
+ENV HF_HUB_CACHE=/tmp/huggingface/hub
+ENV TRANSFORMERS_CACHE=/tmp/huggingface/transformers
+ENV SENTENCE_TRANSFORMERS_HOME=/tmp/sentence_transformers
 
 CMD ["main.handler"]
