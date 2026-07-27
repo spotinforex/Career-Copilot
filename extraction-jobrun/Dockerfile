@@ -21,7 +21,9 @@ RUN python -c "from sentence_transformers import SentenceTransformer; \
 
 RUN mkdir -p /var/task/certs && \
     curl -o /var/task/certs/root.crt \
-    'https://cockroachlabs.cloud/clusters/5969aec4-f6b8-4bd6-9180-dcad541c29ab/cert'
+    'https://cockroachlabs.cloud/clusters/5969aec4-f6b8-4bd6-9180-dcad541c29ab/cert' && \
+    ls -lah /var/task/certs && \
+    test -f /var/task/certs/root.crt
 
 COPY main.py db_class.py agent.py extraction_prompt.txt ./
 
