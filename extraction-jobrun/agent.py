@@ -21,7 +21,7 @@ def get_secret(secret_name, region_name="us-east-2"):
         response = client.get_secret_value(SecretId=secret_name)
     except ClientError as e:
         raise RuntimeError(f"Could not retrieve secret '{secret_name}': {e}") from e
-    return response["SecretString"]
+    return json.loads(response["SecretString"])
 
 secrets = get_secret("career-copilot-prod")
 

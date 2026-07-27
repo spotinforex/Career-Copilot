@@ -13,3 +13,5 @@ wheels/
 *.txt
 *.pem
 print_stored.py
+test-event.json
+output.json
