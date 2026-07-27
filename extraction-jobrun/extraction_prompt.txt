@@ -1,0 +1,16 @@
+Given this exchange, extract only NEW persistent facts worth remembering long-term.
+Ignore anything that's just conversation flow, clarification, or already-known info repeated back.
+
+User: {user_message}
+Assistant: {assistant_response}
+
+Return JSON only:
+{{
+  "facts": [
+    {{"type": "skill|goal|project|preference|resume_edit|application",
+      "content": "...",
+      "role_tag": "ML Engineer" or null,
+      "pin": true/false}}
+  ]
+}}
+If nothing is worth saving, return {{"facts": []}}.

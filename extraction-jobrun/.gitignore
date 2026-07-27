@@ -10,7 +10,7 @@ wheels/
 .venv
 
 .env
-*.txt
+schema.txt
 *.pem
 print_stored.py
 test-event.json
