@@ -19,6 +19,8 @@ RUN pip install --no-cache-dir \
 RUN python -c "from sentence_transformers import SentenceTransformer; \
     SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
 
+RUN curl --create-dirs -o $HOME/.postgresql/root.crt 'https://cockroachlabs.cloud/clusters/5969aec4-f6b8-4bd6-9180-dcad541c29ab/cert'
+
 COPY main.py db_class.py agent.py extraction_prompt.txt ./
 
 ENV HF_HUB_OFFLINE=1
