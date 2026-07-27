@@ -1,32 +1,51 @@
 FROM public.ecr.aws/lambda/python:3.12
 
+# Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 
+WORKDIR /var/task
+
+# Copy dependency files
 COPY pyproject.toml uv.lock ./
 
-# Use uv only to export the lockfile to plain requirements.txt —
-# don't use uv to install, since uv sync insists on a .venv that
-# Lambda's runtime (plain system python) never sees.
+# Export requirements
 RUN uv export --frozen --no-dev --no-hashes -o requirements.txt
 
-# Install with plain pip straight into system Python.
-# --extra-index-url lets pip fall back here for torch's CPU build,
-# which isn't on default PyPI under this exact version pin.
+# Install Python dependencies
 RUN pip install --no-cache-dir \
     --extra-index-url https://download.pytorch.org/whl/cpu \
     -r requirements.txt
 
-RUN python -c "from sentence_transformers import SentenceTransformer; \
-    SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
-
+# Download CockroachDB certificate
 RUN mkdir -p /var/task/certs && \
-    curl -o /var/task/certs/root.crt \
-    'https://cockroachlabs.cloud/clusters/5969aec4-f6b8-4bd6-9180-dcad541c29ab/cert' && \
-    ls -lah /var/task/certs && \
+    curl -L \
+      https://cockroachlabs.cloud/clusters/5969aec4-f6b8-4bd6-9180-dcad541c29ab/cert \
+      -o /var/task/certs/root.crt && \
     test -f /var/task/certs/root.crt
 
-COPY main.py db_class.py agent.py extraction_prompt.txt ./
+# Download and save embedding model into the image
+RUN mkdir -p /var/task/models && \
+    python - <<'PY'
+from sentence_transformers import SentenceTransformer
 
+model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+model.save("/var/task/models/all-MiniLM-L6-v2")
+print("Model saved successfully.")
+PY
+
+# Verify model files exist
+RUN find /var/task/models -type f
+
+# Copy application code
+COPY main.py .
+COPY db_class.py .
+COPY agent.py .
+COPY extraction_prompt.txt .
+
+# Offline mode
+ENV HF_HOME=/var/task/.cache/huggingface
+ENV TRANSFORMERS_CACHE=/var/task/.cache/huggingface
+ENV HF_HUB_CACHE=/var/task/.cache/huggingface
 ENV HF_HUB_OFFLINE=1
 ENV TRANSFORMERS_OFFLINE=1
 

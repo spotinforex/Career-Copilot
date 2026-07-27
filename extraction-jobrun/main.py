@@ -23,7 +23,7 @@ url = secrets['DATABASE_URL']
 
 db = CareerCopilotDB(url).connect()
 
-model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+model = SentenceTransformer("/var/task/models/all-MiniLM-L6-v2")
 
 
 def handler(event, context):
