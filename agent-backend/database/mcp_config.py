@@ -4,7 +4,8 @@ from mcp import ClientSession
 class CockroachMCPClient:
     def __init__(self, url: str, auth_token: str):
         self.url = url
-        self.headers = {"Authorization": f"Bearer {auth_token}"}
+        self.headers = {"Authorization": f"Bearer {auth_token}",
+                        "mcp-cluster-id": "5969aec4-f6b8-4bd6-9180-dcad541c29ab",}
         self._session = None
         self._ctx = None
 
