@@ -260,3 +260,10 @@ class CareerCopilotDB:
             )
 
             return resume
+    
+    def upsert_bio_data(self, user_id: str, **fields):
+            """Insert or update the user's single bio_data row."""
+            existing = self.get_bio_data(user_id)
+            if existing:
+                return self.update("bio_data", fields, {"user_id": user_id})[0]
+            return self.insert("bio_data", {**fields, "user_id": user_id})

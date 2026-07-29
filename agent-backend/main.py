@@ -7,7 +7,7 @@ from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadF
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from utils.session import SessionManager
+from utils.session import SessionManager,Session
 from utils.upload import handle_upload
 from utils.sqs_connector import queue_extraction_job
 from database.db import CareerCopilotDB
