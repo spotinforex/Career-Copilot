@@ -1,6 +1,7 @@
 import json
 import uuid
 import boto3
+from botocore.config import Config
 from io import BytesIO
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
@@ -18,7 +19,10 @@ _s3_client = None
 def get_s3_client():
     global _s3_client
     if _s3_client is None:
-        _s3_client = boto3.client("s3")
+        _s3_client = boto3.client(
+            "s3",
+           region_name="us-east-2",
+           config=Config(signature_version="s3v4"))
     return _s3_client
 
 BUCKET = "careercopilot-artifacts"

@@ -58,7 +58,7 @@ def write_facts(user_id, conversation_id, facts):
     for fact in facts:
         fact_type = fact["type"]
 
-        if fact_type == "bio":
+        if fact_type == "bio_data":
             field_updates = fact.get("fields", {})
             if field_updates:
                 db.upsert_bio_data(user_id, **field_updates)

@@ -7,7 +7,7 @@ Assistant: {assistant_response}
 Return JSON only:
 {{
   "facts": [
-    {{"type": "bio_data|skill|goal|project|preference|resume_edit|application",
+    {{"type": "bio_data|skill|goal|project|resume_edit|application|certification",
       "content": "...",
       "role_tag": "ML Engineer" or null,
       "pin": true/false}}
