@@ -170,6 +170,8 @@ def render_pdf(role_tag: str, content: dict, user_id: str, bio: dict = None) -> 
     buffer.seek(0)
 
     s3 = get_s3_client()  # only created when actually rendering, not at import time
-    key = f"generated/{user_id}/{uuid.uuid4()}.pdf"
+    key = f"generated/{user_id}/{uuid.uuid4().hex[:12]}.pdf"
     s3.put_object(Bucket=BUCKET, Key=key, Body=buffer.read(), ContentType="application/pdf")
-    return s3.generate_presigned_url("get_object", Params={"Bucket": BUCKET, "Key": key}, ExpiresIn=3600)
+    url_link = s3.generate_presigned_url("get_object", Params={"Bucket": BUCKET, "Key": key}, ExpiresIn=3600)
+    print(f"Debug url link: {url_link}")
+    return url_link
