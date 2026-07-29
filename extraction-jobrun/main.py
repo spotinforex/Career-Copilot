@@ -8,6 +8,10 @@ load_dotenv()'''
 import boto3
 from botocore.exceptions import ClientError
 
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
 def get_secret(secret_name, region_name="us-east-2"):
     session = boto3.session.Session()
     client = session.client(service_name='secretsmanager', region_name=region_name)
@@ -27,12 +31,14 @@ model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
 
 def handler(event, context):
+    logging.info("Event Recieved, Process Intialized")
     for record in event["Records"]:
         msg = json.loads(record["body"])
         facts = extract_facts(msg["user_msg"], msg["assistant_msg"])
         if not facts:
             continue
         write_facts(msg["user_id"], msg["conversation_id"], facts)
+    logging.info("Event Processed, Process Completed Successfully")
 
 def extract_facts(user_msg, assistant_msg):
     """

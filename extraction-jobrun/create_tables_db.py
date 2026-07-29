@@ -153,6 +153,20 @@ class CareerCopilotDB:
                 VECTOR INDEX (user_id, embedding)
             )
             """,
+            """
+            CREATE TABLE IF NOT EXISTS bio_data (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID NOT NULL REFERENCES users(id),
+                name STRING NOT NULL,
+                job_titles STRING[] NOT NULL DEFAULT '{}',
+                location STRING,
+                phone STRING,
+                email STRING NOT NULL,
+                other_links STRING[] NOT NULL DEFAULT '{}',
+                last_updated TIMESTAMPTZ DEFAULT now(),
+                UNIQUE (user_id)
+            );
+            """
         ]
 
         for stmt in statements:

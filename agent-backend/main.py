@@ -187,7 +187,7 @@ async def chat(request: ChatRequest, current_user: ClerkUser = Depends(get_curre
     finally:
         await close_agent_dependencies(db, mcp)
 
-    queue_extraction_job(user_id, request.message, response_text)
+    queue_extraction_job(user_id, request.message, response_text,session_id)
 
     session_manager.save(session)
     return ChatResponse(
@@ -235,7 +235,7 @@ async def upload_resume(
         else:
             conversational_message = f"Got your resume for {role_tag} — saved it to your profile."
 
-        queue_extraction_job(user_id, "I uploaded a resume", conversational_message)
+        queue_extraction_job(user_id, "I uploaded a resume", conversational_message,session_id)
 
         session_manager.save(session)
 

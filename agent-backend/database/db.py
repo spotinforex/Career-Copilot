@@ -18,7 +18,7 @@ class CareerCopilotDB:
 
     def connect(self):
         logger.info("Connecting to database")
-        self.conn = psycopg2.connect(self.database_url,) #sslmode="verify-full", sslrootcert="/var/task/certs/root.crt",)
+        self.conn = psycopg2.connect(self.database_url)
         register_vector(self.conn)
         logger.info("Successfully connected to database")
         return self
@@ -170,29 +170,39 @@ class CareerCopilotDB:
 
     # ---------- embeddings / semantic search ----------
 
+    def _to_vector_literal(self, embedding: list[float]) -> str:
+        """CockroachDB wants '[0.1,0.2,...]' cast explicitly — don't rely on psycopg2's
+        automatic pgvector adaptation, which doesn't reliably work against CockroachDB."""
+        return "[" + ",".join(str(float(x)) for x in embedding) + "]"
+
     def save_embedding(self, user_id: str, source_table: str, source_id: str,
                         memory_type: str, text_summary: str, embedding: list[float],
                         is_pinned: bool = False):
-        return self.insert("memory_embeddings", {
-            "user_id": user_id,
-            "source_table": source_table,
-            "source_id": source_id,
-            "memory_type": memory_type,
-            "text_summary": text_summary,
-            "embedding": embedding,
-            "is_pinned": is_pinned
-        })
+        vector_literal = self._to_vector_literal(embedding)
+        query = """
+            INSERT INTO memory_embeddings (user_id, source_table, source_id, memory_type, text_summary, embedding, is_pinned)
+            VALUES (%s, %s, %s, %s, %s, %s::VECTOR, %s)
+            RETURNING *
+        """
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(query, (user_id, source_table, source_id, memory_type, text_summary, vector_literal, is_pinned))
+            row = cur.fetchone()
+            self.conn.commit()
+            return row
 
     def search_similar(self, user_id: str, query_embedding: list[float],
                         memory_type: str = None, limit: int = 5):
-        """Nearest-neighbor search over this user's embeddings. Returns pointers, not full content."""
+        """Nearest-neighbor search over this user's embeddings. Returns pointers, not full content.
+        Uses cosine distance (<=>) — kept consistent with memory_exists and the index's configured metric."""
+        vector_literal = self._to_vector_literal(query_embedding)
+
         query = """
             SELECT source_table, source_id, memory_type, text_summary, is_pinned,
-                   embedding <-> %s AS distance
+                   embedding <=> %s::VECTOR AS distance
             FROM memory_embeddings
             WHERE user_id = %s
         """
-        params = [query_embedding, user_id]
+        params = [vector_literal, user_id]
         if memory_type:
             query += " AND memory_type = %s"
             params.append(memory_type)
@@ -207,16 +217,9 @@ class CareerCopilotDB:
         """Always-include memories (e.g. career goal) regardless of similarity score."""
         return self.fetch_all("memory_embeddings", where={"user_id": user_id, "is_pinned": True})
 
-    def memory_exists(
-    self,
-    user_id: str,
-    embedding: list[float],
-    memory_type: str,
-    threshold: float = 0.10,
-    ):
-        """
-        Returns True if a very similar memory already exists.
-        """
+    def memory_exists(self, user_id: str, embedding: list[float], memory_type: str, threshold: float = 0.10):
+        """Returns True if a very similar memory already exists (cosine distance)."""
+        vector_literal = self._to_vector_literal(embedding)
 
         query = """
             SELECT embedding <=> %s::VECTOR AS distance
@@ -226,25 +229,11 @@ class CareerCopilotDB:
             ORDER BY embedding <=> %s::VECTOR
             LIMIT 1
         """
-
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(
-                query,
-                (
-                    embedding,
-                    user_id,
-                    memory_type,
-                    embedding,
-                ),
-            )
-
+            cur.execute(query, (vector_literal, user_id, memory_type, vector_literal))
             row = cur.fetchone()
+            return row is not None and row["distance"] < threshold
 
-            if row is None:
-                return False
-
-            return row["distance"] < threshold
-        
     def append_resume_edit(self, user_id, role_tag, edit, embed_fn=None):
         resume = self.get_current_resume(user_id, role_tag)
         if not resume:
@@ -258,12 +247,14 @@ class CareerCopilotDB:
 
         if embed_fn:
             new_embedding = embed_fn(json.dumps(content))
+            vector_literal = self._to_vector_literal(new_embedding)
             self.execute(
-                "UPDATE memory_embeddings SET embedding = %s, updated_at = now() "
+                "UPDATE memory_embeddings SET embedding = %s::VECTOR, updated_at = now() "
                 "WHERE source_table = 'resumes' AND source_id = %s",
-                (new_embedding, resume["id"])
+                (vector_literal, resume["id"])
             )
         return resume
+
     def save_conversation_turn(self, user_id: str, session_id: str, role: str, content: str):
         return self.insert("conversations", {
             "user_id": user_id,
@@ -271,3 +262,13 @@ class CareerCopilotDB:
             "role": role,
             "content": content
         })
+
+    def get_bio_data(self, user_id: str):
+        return self.fetch_one("bio_data", where={"user_id": user_id})
+
+    def upsert_bio_data(self, user_id: str, **fields):
+        """Insert or update the user's single bio_data row."""
+        existing = self.get_bio_data(user_id)
+        if existing:
+            return self.update("bio_data", fields, {"user_id": user_id})[0]
+        return self.insert("bio_data", {**fields, "user_id": user_id})
