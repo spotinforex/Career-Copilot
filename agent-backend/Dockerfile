@@ -23,6 +23,7 @@ COPY . .
 
 # Ensure the cert is copied to /var/task/certs/root.crt
 COPY cert/root.crt /var/task/cert/root.crt
+
 ENV HF_HOME=/tmp/huggingface
 ENV HF_HUB_CACHE=/tmp/huggingface/hub
 ENV TRANSFORMERS_CACHE=/tmp/huggingface/transformers
