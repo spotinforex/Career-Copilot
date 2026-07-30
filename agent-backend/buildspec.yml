@@ -16,7 +16,7 @@ phases:
   build:
     commands:
       - echo Building Docker image...
-      - cd agent_process
+      - cd agent-backend
       - docker build --provenance=false --sbom=false -t career-copilot-backend .
       - docker tag career-copilot-backend:latest $REPOSITORY_URI:$IMAGE_TAG
 
