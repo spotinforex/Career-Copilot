@@ -154,6 +154,17 @@ class CareerCopilotDB:
             )
             """,
             """
+            CREATE TABLE IF NOT EXISTS education (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        user_id UUID NOT NULL REFERENCES users(id),
+                        institution STRING NOT NULL,
+                        degree STRING,
+                        field_of_study STRING,
+                        dates STRING,
+                        created_at TIMESTAMPTZ DEFAULT now()
+                        );
+            """,
+            """
             CREATE TABLE IF NOT EXISTS bio_data (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 user_id UUID NOT NULL REFERENCES users(id),
@@ -162,7 +173,6 @@ class CareerCopilotDB:
                 location STRING,
                 phone STRING,
                 email STRING NOT NULL,
-                education STRING[]NOT NULL DEFAULT '{}',
                 other_links STRING[] NOT NULL DEFAULT '{}',
                 last_updated TIMESTAMPTZ DEFAULT now(),
                 UNIQUE (user_id)

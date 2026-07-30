@@ -140,6 +140,16 @@ def write_facts(user_id, conversation_id, facts):
                 "status": fields.get("status", "applied"),
             })
             source_table, source_id = "applications", row["id"]
+        elif fact_type == "education":
+            fields = fact.get("fields", {})
+            row = db.insert("education", {
+                "user_id": user_id,
+                "institution": content,
+                "degree": fields.get("degree"),
+                "field_of_study": fields.get("field_of_study"),
+                "dates": fields.get("dates"),
+            })
+            source_table, source_id = "education", row["id"]
 
         else:
             # unknown/unclassified fact type — fall back to conversation-level

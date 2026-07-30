@@ -8,7 +8,7 @@ Return JSON only, matching this shape:
 {{
   "facts": [
     {{
-      "type": "bio_data|skill|goal|project|resume_edit|application|certification",
+      "type": "bio_data|skill|goal|project|resume_edit|application|certification|education",
       "content": "short text description of the fact (used for the skill name, project title, cert name, goal role, or resume edit text)",
       "fields": {{}},
       "role_tag": "ML Engineer" or null,
@@ -18,13 +18,14 @@ Return JSON only, matching this shape:
 }}
 
 Field notes by type — populate "fields" according to the type, leave {{}} if not applicable:
-- bio_data: fields may include name, location, education, phone, email, other_links (array of strings). "content" is not used for this type.
+- bio_data: fields may include name, location, phone, email, other_links (array of strings). "content" is not used for this type.
 - project: fields may include description, skills_used (array), relevant_roles (array). "content" is the project title.
 - skill: fields may include source ("stated", "certification", "project"). "content" is the skill name.
 - certification: fields may include issuer. "content" is the certification name.
 - goal: "content" is the target role. No extra fields needed.
 - application: fields must include company, role_title, and optionally status ("applied", "interview", "offer", "rejected"). "content" can be a short summary like "Applied to {{company}} for {{role_title}}".
 - resume_edit: "role_tag" is required (which resume this edit applies to). "content" is the edit text.
+- education: fields must include institution, and optionally degree, field_of_study, dates. "content" can be the institution name.
 
 Set "pin": true only for facts that should always be included in the agent's context regardless of relevance scoring — typically an active career goal.
 

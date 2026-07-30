@@ -33,11 +33,11 @@ BUCKET = "careercopilot-artifacts"
 
 
 async def gather_raw_material(user_id: str, role_tag: str, db, embed_fn):
-    """Pull everything relevant, not just an existing resume for this exact role."""
     bio = db.get_bio_data(user_id)
     all_projects = db.fetch_all("projects", where={"user_id": user_id})
     all_skills = db.fetch_all("skills", where={"user_id": user_id})
     all_certs = db.fetch_all("certifications", where={"user_id": user_id})
+    all_education = db.fetch_all("education", where={"user_id": user_id})  # NEW
     goal = db.fetch_one("career_goals", where={"user_id": user_id, "is_active": True})
 
     role_embedding = embed_fn(role_tag)
@@ -47,6 +47,7 @@ async def gather_raw_material(user_id: str, role_tag: str, db, embed_fn):
         "projects": all_projects,
         "skills": [s["name"] for s in all_skills],
         "certifications": [c["name"] for c in all_certs],
+        "education": all_education,  
         "goal": goal,
         "similar_context": similar,
     }
@@ -93,6 +94,7 @@ def synthesize_resume(role_tag: str, raw_material: dict) -> dict:
 
     Skills: {raw_material['skills']}
     Certifications: {raw_material['certifications']}
+    Education: {json.dumps(raw_material.get('education', []), default=str)}
     Career goal: {raw_material['goal']}
 
     Instructions:
