@@ -1,0 +1,32 @@
+version: 0.2
+
+env:
+  variables:
+    AWS_REGION: us-east-2
+    REPOSITORY_URI: 082846230743.dkr.ecr.us-east-2.amazonaws.com/career-copilot-backend
+    IMAGE_TAG: latest
+    FUNCTION_NAME: career-copilot-backend
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
+
+  build:
+    commands:
+      - echo Building Docker image...
+      - cd agent_process
+      - docker build --provenance=false --sbom=false -t career-copilot-backend .
+      - docker tag career-copilot-backend:latest $REPOSITORY_URI:$IMAGE_TAG
+
+  post_build:
+    commands:
+      - echo Pushing image...
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
+
+      - echo Updating Lambda...
+      - aws lambda update-function-code \
+          --function-name $FUNCTION_NAME \
+          --image-uri $REPOSITORY_URI:$IMAGE_TAG \
+          --region $AWS_REGION

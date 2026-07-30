@@ -17,9 +17,11 @@ from agent_process.agent_loop import run_agent_turn as agent_run_turn
 #load_dotenv()
 
 from utils.secret_manager import secrets
+from mangum import Mangum
 
 
 app = FastAPI(title="Career Copilot Backend", version="0.1.0")
+handler = Mangum(app)
 
 origins = [
     secrets["FRONTEND_ORIGIN"] or "http://localhost:5173",
