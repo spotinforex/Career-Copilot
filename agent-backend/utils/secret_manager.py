@@ -46,12 +46,7 @@ def _get_environment_secrets():
 def load_secrets():
     merged = {}
 
-    secret_name = (
-        os.getenv("AWS_SECRET_NAME")
-        or os.getenv("SECRET_NAME")
-        or os.getenv("SECRETS_MANAGER_SECRET_NAME")
-        or "career-copilot-prod"
-    )
+    secret_name = "career-copilot-prod"
     secret_payload = get_secret(secret_name, os.getenv("AWS_DEFAULT_REGION"))
     if isinstance(secret_payload, dict):
         merged.update(secret_payload)
