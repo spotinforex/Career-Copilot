@@ -187,9 +187,27 @@ class CareerCopilotDB:
 
         logger.info("All tables created")
 
+    def alter_table(self):
+        statement = "SHOW INDEXES FROM conversations"
+        res = self.execute(statement, fetch = True)
+        logger.info(f"Table altered successfully {res}")
+
+    def alter_session_id_workaround(self):
+        statements = [
+            "ALTER TABLE conversations ADD COLUMN session_id_new STRING;",
+            "UPDATE conversations SET session_id_new = session_id::STRING;",
+            "ALTER TABLE conversations DROP COLUMN session_id;",
+            "ALTER TABLE conversations RENAME COLUMN session_id_new TO session_id;",
+            "CREATE INDEX IF NOT EXISTS conversations_user_id_session_id_created_at_idx "
+            "ON conversations (user_id, session_id, created_at);",
+        ]
+        for stmt in statements:
+            self.execute(stmt)
+            logger.info(f"Executed: {stmt}")
+
 
 if __name__ == "__main__":
-    with CareerCopilotDB() as db:
-        db.create_tables()
-        res = db.execute("SELECT now()", fetch=True)
-        print(res)
+    db =CareerCopilotDB().connect()
+    db.alter_session_id_workaround()
+    res = db.execute("SELECT now()", fetch=True)
+    print(res)

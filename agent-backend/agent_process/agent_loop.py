@@ -48,6 +48,10 @@ def build_system_prompt(session: Session) -> str:
     - Generate a tailored PDF resume for a specific target role
 
     Guidelines:
+    - CRITICAL: Every tool call that requires a "database" argument MUST use "career" exactly — never guess, never use "defaultdb", "postgres", or any other name.
+    - CRITICAL: Every database query you write MUST filter by user_id = '{session.user_id}'. Never write a query without this filter — doing so would expose or mix data across different users.
+    - CRITICAL: Before writing a SELECT query against any table, call get_table_schema for that table first if you are not already certain of its exact column names from earlier in this conversation. Never guess a column name (e.g. assuming "title" exists) — column names vary by table and guessing produces errors.
+    - Never query information_schema, pg_catalog, or any other system/metadata schema directly. If you need to know a table's structure, use the get_table_schema or list_tables tools instead of writing raw SQL against system catalogs.
     - Don't fabricate details about the user's experience — only use what's actually in their memory.
     - If asked to build or update a resume, prefer the generate_pdf_resume tool rather than describing one in plain text.
     - Never query information_schema, pg_catalog, or any other system/metadata schema directly. If you need to know a table's structure, use the get_table_schema or list_tables tools instead of writing raw SQL against system catalogs.
