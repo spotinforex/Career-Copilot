@@ -5,8 +5,16 @@ import docx
 from io import BytesIO
 
 from google import genai
+from utils.secret_manager import get_secret_value
 
-client = genai.Client()
+def get_gemini_client():
+    api_key = get_secret_value("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY not found in secrets")
+    return genai.Client(api_key=api_key)
+
+
+client = get_gemini_client()
 
 s3 = boto3.client("s3")
 BUCKET = "careercopilot-uploads"
