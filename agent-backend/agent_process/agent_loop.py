@@ -12,7 +12,7 @@ from utils.secret_manager import get_secret_value
 def get_gemini_client():
     api_key = get_secret_value("GEMINI_API_KEY") or get_secret_value("GOOGLE_API_KEY")
     if not api_key:
-        raise 
+        raise ValueError("GEMINI_API_KEY not found in secrets")
     return genai.Client(api_key=api_key)
 
 
