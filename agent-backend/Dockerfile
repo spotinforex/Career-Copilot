@@ -14,11 +14,6 @@ RUN pip install \
     --extra-index-url https://download.pytorch.org/whl/cpu \
     -r requirements.txt
 
-# Install Python dependencies
-RUN pip install --no-cache-dir \
-    --extra-index-url https://download.pytorch.org/whl/cpu \
-    -r requirements.txt
-
 COPY . .
 
 # Ensure the cert is copied to /var/task/certs/root.crt
