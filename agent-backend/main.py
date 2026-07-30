@@ -1,7 +1,7 @@
-import os
+#import os
 from typing import Optional
 
-import httpx
+#import httpx
 import jwt
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,15 +13,17 @@ from utils.sqs_connector import queue_extraction_job
 from database.db import CareerCopilotDB
 from database.mcp_config import CockroachMCPClient
 from agent_process.agent_loop import run_agent_turn as agent_run_turn
-from dotenv import load_dotenv
-load_dotenv()
+#from dotenv import load_dotenv
+#load_dotenv()
+
+from utils.secret_manager import secrets
 
 
 app = FastAPI(title="Career Copilot Backend", version="0.1.0")
 
 origins = [
-    os.getenv("FRONTEND_ORIGIN", "http://localhost:5173"),
-    os.getenv("FRONTEND_ORIGIN", "http://127.0.0.1:5173"),
+    secrets["FRONTEND_ORIGIN"] or "http://localhost:5173",
+    secrets["FRONTEND_ORIGIN"] or "http://127.0.0.1:5173",
 ]
 
 app.add_middleware(
@@ -64,7 +66,7 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> Clerk
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
 
     token = authorization.split(" ", 1)[1].strip()
-    secret_key = os.getenv("CLERK_SECRET_KEY")
+    secret_key = secrets["CLERK_SECRET_KEY"]
     if not secret_key:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="CLERK_SECRET_KEY is not configured")
 
@@ -89,8 +91,8 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> Clerk
 def get_mcp_credentials():
     """Single source of truth for MCP env vars — avoids repeating getenv calls per endpoint."""
     return (
-        os.getenv("db_url"),
-        os.getenv("db_secret_key"),
+        secrets["db_url"],
+        secrets["db_secret_key"],
     )
 
 

@@ -3,17 +3,18 @@ import logging
 import json
 import psycopg2
 from psycopg2.extras import RealDictCursor, execute_values
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 from pgvector.psycopg2 import register_vector
 
-load_dotenv()
+#load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+from utils.secret_manager import secrets
 
 class CareerCopilotDB:
     def __init__(self, database_url: str | None = None):
-        self.database_url = database_url or os.environ["DATABASE_URL"]
+        self.database_url = database_url or secrets["DATABASE_URL"]
         self.conn = None
 
     def connect(self):

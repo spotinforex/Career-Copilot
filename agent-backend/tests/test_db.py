@@ -21,6 +21,7 @@ TABLES = [
     "conversations",
     "bio_data",
     "memory_embeddings",
+    "education"
 ]
 
 

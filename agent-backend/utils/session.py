@@ -1,14 +1,15 @@
 import json
-import os
+#import os
 import uuid
 from datetime import datetime, timezone
 
 import redis
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 
-load_dotenv()
+#load_dotenv()
+from utils.secret_manager import secrets
 
-redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+redis_url = secrets["REDIS_URL"]
 
 _artifact_client = None
 

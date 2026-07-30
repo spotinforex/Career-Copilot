@@ -3,12 +3,13 @@ from google.genai import types
 from agent_process.tools_local import LOCAL_TOOL_DECLARATIONS, LOCAL_TOOL_HANDLERS
 from agent_process.mcp_bridge import mcp_tools_to_gemini
 from utils.session import Session, get_artifact_url, delete_artifact
-import os
+'''import os
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv()'''
+from utils.secret_manager import secrets
 
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+client = genai.Client(api_key=secrets["GEMINI_API_KEY"])
 
 MAX_TOOL_ROUNDS = 20
 

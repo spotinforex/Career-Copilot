@@ -4,9 +4,9 @@ import boto3
 from botocore.config import Config
 from io import BytesIO
 from google import genai
-import os
-from dotenv import load_dotenv
-load_dotenv()
+#import os
+#from dotenv import load_dotenv
+#load_dotenv()
 from utils.embed_process import encode_text as embed_fn
 from utils.session import store_artifact_url
 
@@ -16,7 +16,9 @@ from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_LEFT
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, ListFlowable, ListItem
 
-gemini = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+from utils.secret_manager import secrets
+
+gemini = genai.Client(api_key=secrets["GEMINI_API_KEY"])
 
 _s3_client = None
 

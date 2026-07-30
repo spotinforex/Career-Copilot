@@ -1,11 +1,13 @@
 import json
 import logging
-import os
+#import os
 import boto3
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 
-load_dotenv()
+#load_dotenv()
 logging.basicConfig(level=logging.INFO)
+
+from utils.secret_manager import secrets
 
 _sqs_client = None
 
@@ -22,7 +24,7 @@ def queue_extraction_job(user_id: str, user_msg: str, assistant_msg: str, sessio
     try:
         sqs = get_sqs_client()
         sqs.send_message(
-            QueueUrl=os.environ["SQS_QUEUE_URL"],
+            QueueUrl=secrets["SQS_QUEUE_URL"],
             MessageBody=json.dumps({
                 "user_id": user_id,
                 "conversation_id": session_id,

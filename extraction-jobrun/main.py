@@ -140,6 +140,7 @@ def write_facts(user_id, conversation_id, facts):
                 "status": fields.get("status", "applied"),
             })
             source_table, source_id = "applications", row["id"]
+            
         elif fact_type == "education":
             fields = fact.get("fields", {})
             row = db.insert("education", {
