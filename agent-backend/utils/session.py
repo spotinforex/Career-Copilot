@@ -1,4 +1,3 @@
-# session.py
 import json
 import os
 import uuid
@@ -10,6 +9,30 @@ from dotenv import load_dotenv
 load_dotenv()
 
 redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+_artifact_client = None
+
+
+def get_artifact_client():
+    """Separate lazy client for artifact caching — kept distinct from
+    SessionManager's client so a failure/timeout in one doesn't affect the other."""
+    global _artifact_client
+    if _artifact_client is None:
+        _artifact_client = redis.Redis.from_url(redis_url, decode_responses=True)
+    return _artifact_client
+
+
+def store_artifact_url(artifact_id: str, url: str, ttl_seconds: int = 3600):
+    get_artifact_client().set(f"artifact:{artifact_id}", url, ex=ttl_seconds)
+
+
+def get_artifact_url(artifact_id: str) -> str | None:
+    return get_artifact_client().get(f"artifact:{artifact_id}")
+
+
+def delete_artifact(artifact_id: str):
+    get_artifact_client().delete(f"artifact:{artifact_id}")
+
 
 class Session:
     def __init__(self, user_id: str, session_id: str = None,
@@ -62,7 +85,6 @@ class SessionManager:
     def _read(self, session_id: str):
         if not self._redis_available:
             return self._fallback_sessions.get(self._key(session_id))
-
         try:
             return self.r.get(self._key(session_id))
         except Exception:
@@ -73,7 +95,6 @@ class SessionManager:
         if not self._redis_available:
             self._fallback_sessions[self._key(session_id)] = value
             return
-
         try:
             self.r.set(self._key(session_id), value, ex=self.ttl_seconds)
         except Exception:
@@ -85,7 +106,6 @@ class SessionManager:
             raw = self._read(session_id)
             if raw:
                 return Session.from_dict(json.loads(raw))
-        # no existing session found (or none provided) — create new
         session = Session(user_id, session_id)
         self.save(session)
         return session

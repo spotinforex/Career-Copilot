@@ -162,6 +162,7 @@ class CareerCopilotDB:
                 location STRING,
                 phone STRING,
                 email STRING NOT NULL,
+                education STRING[]NOT NULL DEFAULT '{}',
                 other_links STRING[] NOT NULL DEFAULT '{}',
                 last_updated TIMESTAMPTZ DEFAULT now(),
                 UNIQUE (user_id)

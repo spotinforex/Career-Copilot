@@ -2,7 +2,7 @@ from google import genai
 from google.genai import types
 from agent_process.tools_local import LOCAL_TOOL_DECLARATIONS, LOCAL_TOOL_HANDLERS
 from agent_process.mcp_bridge import mcp_tools_to_gemini
-from utils.session import Session
+from utils.session import Session, get_artifact_url, delete_artifact
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -50,6 +50,7 @@ def build_system_prompt(session: Session) -> str:
     - Stay concise even while being conversational — friendly doesn't mean padded. Get to the point, just don't sound robotic doing it.
     - If Users as if they can upload their resumes, tell them yes they can go ahead and upload using the upload button.
     - If the user is just chatting, catching up, or asking something that isn't really about their career data, respond naturally rather than forcing it toward a tool call or a career topic.
+    - When generate_pdf_resume succeeds, just confirm it's ready in a natural sentence (e.g. "Your Software Engineer resume is ready!") — a download link is attached automatically after your response, so never write out a URL yourself.
 
     Critical: on greetings or small talk ("hi", "hello", "hey", "how's it going") — just greet them back warmly and ask what they'd like help with. Do NOT check their memory, call any tools, or volunteer information about what is or isn't in their profile unless they've actually asked something that requires it. Never open with "I noticed you don't have..." or similar — an empty or incomplete profile is only relevant once the user asks a question it would actually affect, not something to lead with unprompted.
     """
@@ -58,9 +59,8 @@ async def run_agent_turn(user_message: str, session: Session, mcp, db):
     mcp_tools_list = await mcp.list_tools()
     mcp_tool_names = {t.name for t in mcp_tools_list}
     gemini_mcp_tool = mcp_tools_to_gemini(mcp_tools_list)
-
     all_tools = [gemini_mcp_tool, LOCAL_TOOL_DECLARATIONS]
-    system_prompt = build_system_prompt(session)  # built once per turn, uses cached_context
+    system_prompt = build_system_prompt(session)
 
     contents = [
         types.Content(role=turn["role"], parts=[types.Part(text=turn["content"])])
@@ -71,7 +71,9 @@ async def run_agent_turn(user_message: str, session: Session, mcp, db):
     session.add_turn("user", user_message)
     db.save_conversation_turn(session.user_id, session.session_id, "user", user_message)
 
+    pending_artifact_ids = []  # collected across this turn's tool calls
     rounds = 0
+
     while True:
         if rounds >= MAX_TOOL_ROUNDS:
             fallback = "I wasn't able to complete that after several attempts — could you rephrase or simplify the request?"
@@ -82,10 +84,7 @@ async def run_agent_turn(user_message: str, session: Session, mcp, db):
         response = client.models.generate_content(
             model="gemini-3.5-flash-lite",
             contents=contents,
-            config=types.GenerateContentConfig(
-                tools=all_tools,
-                system_instruction=system_prompt,
-            )
+            config=types.GenerateContentConfig(tools=all_tools, system_instruction=system_prompt)
         )
         candidate = response.candidates[0]
         contents.append(candidate.content)
@@ -94,6 +93,15 @@ async def run_agent_turn(user_message: str, session: Session, mcp, db):
 
         if not function_calls:
             final_text = "".join(p.text for p in candidate.content.parts if p.text)
+
+            # attach any generated download links AFTER the LLM's text is finalized —
+            # never let the model see or reproduce the raw URL itself
+            for artifact_id in pending_artifact_ids:
+                url = get_artifact_url(artifact_id)
+                if url:
+                    final_text += f"\n\n[Download your resume PDF]({url})"
+                    delete_artifact(artifact_id)
+
             session.add_turn("model", final_text)
             db.save_conversation_turn(session.user_id, session.session_id, "assistant", final_text)
             return final_text
@@ -101,8 +109,15 @@ async def run_agent_turn(user_message: str, session: Session, mcp, db):
         response_parts = []
         for fc in function_calls:
             args = dict(fc.args)
+
             if fc.name in LOCAL_TOOL_HANDLERS:
                 result = await LOCAL_TOOL_HANDLERS[fc.name](session=session, db=db, **args)
+
+                # capture the artifact_id locally, then strip it before the LLM ever sees it
+                if "artifact_id" in result:
+                    pending_artifact_ids.append(result["artifact_id"])
+                    result = {k: v for k, v in result.items() if k != "artifact_id"}
+
             elif fc.name in mcp_tool_names:
                 args.pop("cluster_id", None)
                 result = await mcp.call_tool(fc.name, args)
