@@ -3,7 +3,7 @@ name = "agent-backend"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "boto3>=1.43.57",
     "botocore[crt]>=1.43.57",
