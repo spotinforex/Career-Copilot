@@ -57,14 +57,14 @@ def extract_facts(user_msg, assistant_msg):
 def write_facts(user_id, conversation_id, facts):
     for fact in facts:
         fact_type = fact["type"]
+        fields = fact.get("fields", {})
 
         if fact_type == "bio_data":
-            field_updates = fact.get("fields", {})
-            if field_updates:
-                db.upsert_bio_data(user_id, **field_updates)
+            if fields:
+                db.upsert_bio_data(user_id, **fields)
             continue
 
-        content = fact["content"]
+        content = fact.get("content", "")
         embedding = model.encode(content).tolist()
         embedding_str = "[" + ",".join(map(str, embedding)) + "]"
 
@@ -72,50 +72,69 @@ def write_facts(user_id, conversation_id, facts):
             continue
 
         if fact_type == "resume_edit":
-            db.append_resume_edit(user_id=user_id, role_tag=fact["role_tag"], edit=content)
+            db.append_resume_edit(user_id=user_id, role_tag=fact.get("role_tag"), edit=content)
             continue
 
         if fact_type == "project":
             row = db.insert("projects", {
                 "user_id": user_id,
                 "title": content,
-                "description": fact.get("description", ""),
-                "skills_used": fact.get("skills_used", []),
-                "relevant_roles": fact.get("relevant_roles", []),
+                "description": fields.get("description", ""),
+                "skills_used": fields.get("skills_used", []),
+                "relevant_roles": fields.get("relevant_roles", []),
             })
             source_table, source_id = "projects", row["id"]
 
         elif fact_type == "skill":
             existing = db.fetch_one("skills", where={"user_id": user_id, "name": content})
             if existing:
-                row = db.update("skills", {"source": fact.get("source", "conversation")}, {"id": existing["id"]})[0]
+                row = db.update("skills", {"source": fields.get("source", "conversation")}, {"id": existing["id"]})[0]
             else:
                 row = db.insert("skills", {
                     "user_id": user_id,
                     "name": content,
-                    "source": fact.get("source", "conversation"),
+                    "source": fields.get("source", "conversation"),
                 })
             source_table, source_id = "skills", row["id"]
 
         elif fact_type == "certification":
             row = db.insert("certifications", {
-                "user_id": user_id, "name": content, "issuer": fact.get("issuer"),
+                "user_id": user_id,
+                "name": content,
+                "issuer": fields.get("issuer"),
             })
             source_table, source_id = "certifications", row["id"]
 
         elif fact_type == "goal":
             db.update("career_goals", {"is_active": False}, {"user_id": user_id, "is_active": True})
             row = db.insert("career_goals", {
-                "user_id": user_id, "target_role": content, "is_active": True,
+                "user_id": user_id,
+                "target_role": content,
+                "is_active": True,
             })
             source_table, source_id = "career_goals", row["id"]
 
+        elif fact_type == "application":
+            row = db.insert("applications", {
+                "user_id": user_id,
+                "company": fields.get("company"),
+                "role_title": fields.get("role_title"),
+                "status": fields.get("status", "applied"),
+            })
+            source_table, source_id = "applications", row["id"]
+
         else:
+            # unknown/unclassified fact type — fall back to conversation-level
+            # embedding only, so nothing is silently dropped
             source_table = fact.get("source_table", "conversation")
             source_id = fact.get("source_id", conversation_id)
 
         db.save_embedding(
-            user_id=user_id, source_table=source_table, source_id=source_id,
-            memory_type=fact_type, text_summary=content, embedding=embedding,
+            user_id=user_id,
+            source_table=source_table,
+            source_id=source_id,
+            memory_type=fact_type,
+            text_summary=content,
+            embedding=embedding,
             is_pinned=fact.get("pin", False),
         )

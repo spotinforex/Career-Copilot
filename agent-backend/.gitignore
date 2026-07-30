@@ -11,3 +11,4 @@ wheels/
 
 .env
 shape.txt
+db_dump.json
