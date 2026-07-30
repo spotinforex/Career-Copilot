@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth, useUser } from '@clerk/clerk-react';
+import { useAuth, useUser, useClerk } from '@clerk/clerk-react';
 import { Header } from './components/Header';
 import { ChatInterface } from './components/ChatInterface';
 import { ResumeWorkspace } from './components/ResumeWorkspace';
@@ -7,19 +7,19 @@ import { UploadModal } from './components/UploadModal';
 import { SessionSidebar } from './components/SessionSidebar';
 import { AuthPage } from './components/AuthPage';
 import { checkBackendHealth, ensureUser, sendChatMessage, uploadResumeFile } from './services/api';
-import { initialSampleResume } from './data/sampleResume';
 import { ChatMessage, UploadResponse, SessionInfo } from './types';
-import { MessageSquare, Layers, Sparkles } from 'lucide-react';
+import { Bot } from 'lucide-react';
 
 export default function App() {
   const [isBackendOnline, setIsBackendOnline] = useState<boolean>(true);
   const [isCheckingHealth, setIsCheckingHealth] = useState<boolean>(false);
   const [activeRoleTag, setActiveRoleTag] = useState<string>('Software Engineer');
   const [showResumePanel, setShowResumePanel] = useState<boolean>(true);
+  const [mobileTab, setMobileTab] = useState<'chat' | 'resume'>('chat');
   const [isUploadOpen, setIsUploadOpen] = useState<boolean>(false);
   const [isSessionSidebarOpen, setIsSessionSidebarOpen] = useState<boolean>(false);
 
-  // Authentication gate state
+  // Authentication state
   const [localUser, setLocalUser] = useState<{ email: string; name: string } | null>(() => {
     const saved = localStorage.getItem('career_copilot_user');
     if (saved) {
@@ -30,17 +30,38 @@ export default function App() {
     return null;
   });
 
-  // Resume memory state - starts empty until user uploads a CV
-  const [resumeData, setResumeData] = useState<UploadResponse | null>(null);
+  // Resume memory state - persisted in localStorage
+  const [resumeData, setResumeData] = useState<UploadResponse | null>(() => {
+    const saved = localStorage.getItem('career_copilot_resume_data');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return null;
+  });
+
+  // Save resumeData to localStorage whenever updated
+  useEffect(() => {
+    if (resumeData) {
+      localStorage.setItem('career_copilot_resume_data', JSON.stringify(resumeData));
+    } else {
+      localStorage.removeItem('career_copilot_resume_data');
+    }
+  }, [resumeData]);
 
   // Sessions state
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(
-    () => localStorage.getItem('career_copilot_session') || null
-  );
+  const [activeSessionId, setActiveSessionId] = useState<string>(() => {
+    return localStorage.getItem('career_copilot_session') || '514a1ac1-1997-48f8-9ce6-7198aba211a3';
+  });
+
   const [sessions, setSessions] = useState<SessionInfo[]>(() => {
     const saved = localStorage.getItem('career_copilot_sessions_list');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {}
     }
     return [
       {
@@ -52,26 +73,70 @@ export default function App() {
     ];
   });
 
+  // Message history persistence helper
+  const getSavedMessages = useCallback((sessionId: string | null, role: string): ChatMessage[] => {
+    if (!sessionId) {
+      return [
+        {
+          id: 'welcome-1',
+          sender: 'assistant',
+          text: `Hey there! 👋 How's it going? What can I help you with today?\n\nUpload your resume to hydrate Career Copilot's persistent memory for **${role}**, or ask any application questions!`,
+          timestamp: new Date(),
+        },
+      ];
+    }
+    const saved = localStorage.getItem(`career_copilot_msgs_${sessionId}`);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((m: any) => ({
+            ...m,
+            timestamp: new Date(m.timestamp),
+          }));
+        }
+      } catch (e) {}
+    }
+    return [
+      {
+        id: `welcome-${sessionId}`,
+        sender: 'assistant',
+        text: `Hey there! 👋 How's it going? What can I help you with today?\n\nUpload your resume to hydrate Career Copilot's persistent memory for **${role}**, or ask any application questions!`,
+        timestamp: new Date(),
+      },
+    ];
+  }, []);
+
   // Chat message thread state
-  const [messages, setMessages] = useState<ChatMessage[]>(() => [
-    {
-      id: 'welcome-1',
-      sender: 'assistant',
-      text: "Hey there! 👋 How's it going? What can I help you with today?\n\nUpload your resume to hydrate Career Copilot's persistent memory with your experience, projects, and skills.",
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    const initialSession = localStorage.getItem('career_copilot_session') || '514a1ac1-1997-48f8-9ce6-7198aba211a3';
+    return getSavedMessages(initialSession, activeRoleTag);
+  });
   const [isSending, setIsSending] = useState<boolean>(false);
 
-  // Clerk Auth token getter and User state
+  // Save current messages to localStorage whenever messages update
+  useEffect(() => {
+    if (activeSessionId && messages.length > 0) {
+      localStorage.setItem(`career_copilot_msgs_${activeSessionId}`, JSON.stringify(messages));
+    }
+  }, [messages, activeSessionId]);
+
+  // Clerk Auth integration & token getter
   let getToken: (() => Promise<string | null>) | undefined;
+  let isClerkLoaded = true;
   let isClerkSignedIn = false;
   let clerkUserInfo: { name: string; email: string } | null = null;
+  let clerkSignOutFn: (() => Promise<void>) | undefined;
+
   try {
     const auth = useAuth();
     const userHook = useUser();
+    const clerk = useClerk();
     getToken = auth.getToken;
+    isClerkLoaded = userHook.isLoaded;
     isClerkSignedIn = userHook.isSignedIn || false;
+    clerkSignOutFn = clerk.signOut;
+
     if (userHook.user) {
       clerkUserInfo = {
         name: userHook.user.fullName || userHook.user.firstName || 'User',
@@ -82,7 +147,15 @@ export default function App() {
     // Clerk provider not mounted or unconfigured
   }
 
-  const isAuthenticated = isClerkSignedIn || localUser !== null;
+  // Sync Clerk authenticated user to local user & localStorage for reload persistence
+  useEffect(() => {
+    if (isClerkLoaded && isClerkSignedIn && clerkUserInfo) {
+      setLocalUser(clerkUserInfo);
+      localStorage.setItem('career_copilot_user', JSON.stringify(clerkUserInfo));
+    }
+  }, [isClerkLoaded, isClerkSignedIn, clerkUserInfo]);
+
+  const isAuthenticated = (isClerkLoaded && isClerkSignedIn) || localUser !== null;
   const activeUser = clerkUserInfo || localUser;
 
   const handleLoginSuccess = (userObj: { email: string; name: string }) => {
@@ -93,6 +166,11 @@ export default function App() {
   const handleSignOut = () => {
     setLocalUser(null);
     localStorage.removeItem('career_copilot_user');
+    if (clerkSignOutFn) {
+      try {
+        clerkSignOutFn();
+      } catch (e) {}
+    }
   };
 
   const fetchAuthToken = useCallback(async (): Promise<string | null> => {
@@ -128,7 +206,7 @@ export default function App() {
     })();
   }, [fetchAuthToken]);
 
-  // Save sessions to localStorage
+  // Save sessions list and activeSessionId to localStorage
   useEffect(() => {
     localStorage.setItem('career_copilot_sessions_list', JSON.stringify(sessions));
     if (activeSessionId) {
@@ -183,7 +261,6 @@ export default function App() {
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (err: any) {
       console.error('Chat error:', err);
-      // Fallback assistant response
       const fallbackMsg: ChatMessage = {
         id: `assistant-err-${Date.now()}`,
         sender: 'assistant',
@@ -226,54 +303,78 @@ export default function App() {
 
     setMessages((prev) => [...prev, uploadUserMsg, uploadAssistantMsg]);
 
-    // Ensure resume panel is open to display extracted memory
+    // Ensure resume panel is open & switch to resume tab on mobile
     setShowResumePanel(true);
+    setMobileTab('resume');
   };
 
   // New Chat session
   const handleNewSession = () => {
     const newId = `session-${Date.now()}`;
     setActiveSessionId(newId);
-    setSessions((prev) => [
+    localStorage.setItem('career_copilot_session', newId);
+
+    const newSessionsList = [
       {
         id: newId,
         title: `New Career Session (${activeRoleTag})`,
         updatedAt: new Date(),
         roleTag: activeRoleTag,
       },
-      ...prev,
-    ]);
-    setMessages([
+      ...sessions,
+    ];
+    setSessions(newSessionsList);
+
+    const newWelcome: ChatMessage[] = [
       {
         id: `welcome-${newId}`,
         sender: 'assistant',
         text: `Started a fresh career copilot session for target role: **${activeRoleTag}**.\n\nYour active resume profile is loaded in persistent memory. How can I assist with your application or interview prep today?`,
         timestamp: new Date(),
       },
-    ]);
+    ];
+    setMessages(newWelcome);
+    localStorage.setItem(`career_copilot_msgs_${newId}`, JSON.stringify(newWelcome));
   };
 
   // Select session
   const handleSelectSession = (sessionId: string) => {
     setActiveSessionId(sessionId);
-    const sessionItem = sessions.find((s) => s.id === sessionId);
-    setMessages([
-      {
-        id: `session-switch-${Date.now()}`,
-        sender: 'assistant',
-        text: `Switched to session **${sessionItem?.title || sessionId}**.\n\nI have retrieved your agent memory context for ${sessionItem?.roleTag || activeRoleTag}. What would you like to review?`,
-        timestamp: new Date(),
-      },
-    ]);
+    localStorage.setItem('career_copilot_session', sessionId);
+    const loaded = getSavedMessages(sessionId, activeRoleTag);
+    setMessages(loaded);
   };
 
   // Delete session
   const handleDeleteSession = (sessionId: string) => {
-    setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+    const updated = sessions.filter((s) => s.id !== sessionId);
+    setSessions(updated);
+    localStorage.removeItem(`career_copilot_msgs_${sessionId}`);
     if (activeSessionId === sessionId) {
-      handleNewSession();
+      if (updated.length > 0) {
+        handleSelectSession(updated[0].id);
+      } else {
+        handleNewSession();
+      }
     }
   };
+
+  // Render full-screen loader while Clerk initializes on initial load
+  if (!isClerkLoaded) {
+    return (
+      <div className="min-h-screen w-full bg-slate-950 flex flex-col items-center justify-center text-slate-100 font-sans">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-12 w-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg animate-pulse">
+            <Bot className="h-6 w-6" />
+          </div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
+            <span className="inline-block h-4 w-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+            <span>Restoring workspace session...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return <AuthPage onLoginSuccess={handleLoginSuccess} />;
@@ -296,29 +397,39 @@ export default function App() {
         sessionsCount={sessions.length}
         currentUser={activeUser}
         onSignOut={handleSignOut}
+        mobileTab={mobileTab}
+        onMobileTabChange={(tab) => setMobileTab(tab)}
       />
 
       {/* Main Workspace Body */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Chat Interface */}
-        <ChatInterface
-          messages={messages}
-          onSendMessage={handleSendMessage}
-          isSending={isSending}
-          onOpenUpload={() => setIsUploadOpen(true)}
-          activeRoleTag={activeRoleTag}
-        />
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Chat Interface - full width on mobile when tab is chat, flexible on desktop */}
+        <div className={`flex-1 flex flex-col h-full overflow-hidden ${mobileTab === 'chat' ? 'flex' : 'hidden md:flex'}`}>
+          <ChatInterface
+            messages={messages}
+            onSendMessage={handleSendMessage}
+            isSending={isSending}
+            onOpenUpload={() => setIsUploadOpen(true)}
+            activeRoleTag={activeRoleTag}
+          />
+        </div>
 
         {/* Collapsible Resume Memory Workspace Panel */}
-        {showResumePanel && (
-          <div className="w-full md:w-[380px] lg:w-[420px] shrink-0 h-full">
-            <ResumeWorkspace
-              resumeData={resumeData}
-              onOpenUpload={() => setIsUploadOpen(true)}
-              activeRoleTag={activeRoleTag}
-            />
-          </div>
-        )}
+        <div
+          className={`w-full md:w-[380px] lg:w-[420px] shrink-0 h-full border-l border-slate-200 overflow-hidden bg-slate-50 ${
+            mobileTab === 'resume'
+              ? 'flex flex-col'
+              : showResumePanel
+              ? 'hidden md:flex md:flex-col'
+              : 'hidden'
+          }`}
+        >
+          <ResumeWorkspace
+            resumeData={resumeData}
+            onOpenUpload={() => setIsUploadOpen(true)}
+            activeRoleTag={activeRoleTag}
+          />
+        </div>
       </div>
 
       {/* Upload Modal */}

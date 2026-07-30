@@ -1,5 +1,5 @@
 import React from 'react';
-import { History, Bot, Upload, Layers, CheckCircle2, AlertCircle, RefreshCw, PanelRightOpen, PanelRightClose, User, LogOut } from 'lucide-react';
+import { History, Bot, Upload, Layers, RefreshCw, PanelRightOpen, PanelRightClose, LogOut, MessageSquare, FileText } from 'lucide-react';
 import { useClerk, useUser, UserButton } from '@clerk/clerk-react';
 
 interface HeaderProps {
@@ -16,6 +16,8 @@ interface HeaderProps {
   sessionsCount: number;
   currentUser: { email: string; name: string } | null;
   onSignOut: () => void;
+  mobileTab?: 'chat' | 'resume';
+  onMobileTabChange?: (tab: 'chat' | 'resume') => void;
 }
 
 export const ROLE_TAGS = [
@@ -43,6 +45,8 @@ export const Header: React.FC<HeaderProps> = ({
   sessionsCount,
   currentUser,
   onSignOut,
+  mobileTab = 'chat',
+  onMobileTabChange,
 }) => {
   let clerk: any = null;
   let isSignedIn = false;
@@ -184,6 +188,36 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Mobile Screen View Switcher */}
+      {onMobileTabChange && (
+        <div className="flex md:hidden items-center justify-center border-t border-slate-200/80 pt-2 mt-2 gap-2 max-w-7xl mx-auto">
+          <button
+            type="button"
+            onClick={() => onMobileTabChange('chat')}
+            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+              mobileTab === 'chat'
+                ? 'bg-indigo-600 text-white shadow-xs font-bold'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            <span>Chat View</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onMobileTabChange('resume')}
+            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+              mobileTab === 'resume'
+                ? 'bg-indigo-600 text-white shadow-xs font-bold'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <FileText className="h-3.5 w-3.5" />
+            <span>Resume Memory</span>
+          </button>
+        </div>
+      )}
     </header>
   );
 };
