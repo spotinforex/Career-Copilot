@@ -1,12 +1,5 @@
 version: 0.2
 
-env:
-  variables:
-    AWS_REGION: us-east-2
-    REPOSITORY_URI: 082846230743.dkr.ecr.us-east-2.amazonaws.com/career-copilot-backend
-    IMAGE_TAG: latest
-    FUNCTION_NAME: career-copilot-backend
-
 phases:
   pre_build:
     commands:
@@ -18,15 +11,15 @@ phases:
       - echo Building Docker image...
       - cd agent-backend
       - docker build --provenance=false --sbom=false -t career-copilot-backend .
-      - docker tag career-copilot-backend:latest $REPOSITORY_URI:$IMAGE_TAG
+      - docker tag career-copilot-backend:latest 082846230743.dkr.ecr.us-east-2.amazonaws.com/career-copilot-backend:latest
 
   post_build:
     commands:
       - echo Pushing image...
-      - docker push $REPOSITORY_URI:$IMAGE_TAG
+      - docker push 082846230743.dkr.ecr.us-east-2.amazonaws.com/career-copilot-backend:latest
 
       - echo Updating Lambda...
       - aws lambda update-function-code \
-          --function-name $FUNCTION_NAME \
-          --image-uri $REPOSITORY_URI:$IMAGE_TAG \
-          --region $AWS_REGION
+          --function-name career-copilot-backend \
+          --image-uri 082846230743.dkr.ecr.us-east-2.amazonaws.com/career-copilot-backend:latest \
+          --region us-east-2
