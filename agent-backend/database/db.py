@@ -19,7 +19,7 @@ class CareerCopilotDB:
 
     def connect(self):
         logger.info("Connecting to database")
-        self.conn = psycopg2.connect(self.database_url)
+        self.conn = psycopg2.connect(self.database_url, sslmode="verify-full",sslrootcert="/var/task/certs/root.crt",)
         register_vector(self.conn)
         logger.info("Successfully connected to database")
         return self

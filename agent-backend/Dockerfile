@@ -10,9 +10,7 @@ RUN uv sync --frozen
 
 COPY . .
 
-RUN mkdir -p certs && \
-    dnf install -y curl && \
-    curl -L https://cockroachlabs.cloud/clusters/5969aec4-f6b8-4bd6-9180-dcad541c29ab/cert \
-    -o certs/root.crt
+# Ensure the cert is copied to /var/task/certs/root.crt
+COPY cert/root.crt /var/task/cert/root.crt
 
 CMD ["main.handler"]
