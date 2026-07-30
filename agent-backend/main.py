@@ -18,6 +18,7 @@ from agent_process.agent_loop import run_agent_turn as agent_run_turn
 
 from utils.secret_manager import get_secret_value, secrets
 from mangum import Mangum
+import traceback
 
 
 app = FastAPI(title="Career Copilot Backend", version="0.1.0")
@@ -116,8 +117,9 @@ async def open_agent_dependencies():
         try:
             db = CareerCopilotDB()
             db.connect()
-        except Exception:
-            db = None
+        except Exception as e:
+            traceback.print_exc()
+            raise
 
     mcp_url, mcp_auth_token = get_mcp_credentials()
     if CockroachMCPClient is not None and mcp_url and mcp_auth_token:
