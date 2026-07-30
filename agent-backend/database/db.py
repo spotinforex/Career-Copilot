@@ -10,11 +10,11 @@ from pgvector.psycopg2 import register_vector
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from utils.secret_manager import secrets
+from utils.secret_manager import get_secret_value
 
 class CareerCopilotDB:
     def __init__(self, database_url: str | None = None):
-        self.database_url = database_url or secrets["DATABASE_URL"]
+        self.database_url = database_url or get_secret_value("DATABASE_URL") or get_secret_value("db_url")
         self.conn = None
 
     def connect(self):

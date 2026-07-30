@@ -7,9 +7,9 @@ import redis
 #from dotenv import load_dotenv
 
 #load_dotenv()
-from utils.secret_manager import secrets
+from utils.secret_manager import get_secret_value
 
-redis_url = secrets["REDIS_URL"]
+redis_url = get_secret_value("REDIS_URL")
 
 _artifact_client = None
 

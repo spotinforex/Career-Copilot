@@ -7,7 +7,7 @@ import boto3
 #load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
-from utils.secret_manager import secrets
+from utils.secret_manager import get_secret_value
 
 _sqs_client = None
 
@@ -24,7 +24,7 @@ def queue_extraction_job(user_id: str, user_msg: str, assistant_msg: str, sessio
     try:
         sqs = get_sqs_client()
         sqs.send_message(
-            QueueUrl=secrets["SQS_QUEUE_URL"],
+            QueueUrl=get_secret_value("SQS_QUEUE_URL"),
             MessageBody=json.dumps({
                 "user_id": user_id,
                 "conversation_id": session_id,

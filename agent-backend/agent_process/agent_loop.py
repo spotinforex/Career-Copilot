@@ -6,10 +6,17 @@ from utils.session import Session, get_artifact_url, delete_artifact
 '''import os
 from dotenv import load_dotenv
 load_dotenv()'''
-from utils.secret_manager import secrets
+from utils.secret_manager import get_secret_value
 
 
-client = genai.Client(api_key=secrets["GEMINI_API_KEY"])
+def get_gemini_client():
+    api_key = get_secret_value("GEMINI_API_KEY") or get_secret_value("GOOGLE_API_KEY")
+    if not api_key:
+        raise 
+    return genai.Client(api_key=api_key)
+
+
+client = get_gemini_client()
 
 MAX_TOOL_ROUNDS = 20
 
@@ -74,6 +81,9 @@ async def run_agent_turn(user_message: str, session: Session, mcp, db):
 
     pending_artifact_ids = []  # collected across this turn's tool calls
     rounds = 0
+
+    if client is None:
+        raise RuntimeError("GEMINI_API_KEY is not configured. Set it in AWS Secrets Manager or as an environment variable.")
 
     while True:
         if rounds >= MAX_TOOL_ROUNDS:

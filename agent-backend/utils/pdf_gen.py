@@ -16,9 +16,17 @@ from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_LEFT
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, ListFlowable, ListItem
 
-from utils.secret_manager import secrets
+from utils.secret_manager import get_secret_value
 
-gemini = genai.Client(api_key=secrets["GEMINI_API_KEY"])
+
+def get_gemini_client():
+    api_key = get_secret_value("GEMINI_API_KEY") or get_secret_value("GOOGLE_API_KEY")
+    if not api_key:
+        return None
+    return genai.Client(api_key=api_key)
+
+
+gemini = get_gemini_client()
 
 _s3_client = None
 
@@ -81,6 +89,9 @@ def build_styles():
 
 def synthesize_resume(role_tag: str, raw_material: dict) -> dict:
     """One LLM call: turn raw material into a tailored resume, not a copy of an old one."""
+    if gemini is None:
+        raise RuntimeError("GEMINI_API_KEY is not configured. Set it in AWS Secrets Manager or as an environment variable.")
+
     bio = raw_material.get("bio") or {}
 
     prompt = f"""You are building a tailored resume for the target role: {role_tag}.

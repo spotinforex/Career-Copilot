@@ -16,17 +16,15 @@ from agent_process.agent_loop import run_agent_turn as agent_run_turn
 #from dotenv import load_dotenv
 #load_dotenv()
 
-from utils.secret_manager import secrets
+from utils.secret_manager import get_secret_value, secrets
 from mangum import Mangum
 
 
 app = FastAPI(title="Career Copilot Backend", version="0.1.0")
 handler = Mangum(app)
 
-origins = [
-    secrets["FRONTEND_ORIGIN"] or "http://localhost:5173",
-    secrets["FRONTEND_ORIGIN"] or "http://127.0.0.1:5173",
-]
+frontend_origin = get_secret_value("FRONTEND_ORIGIN") or "http://localhost:5173"
+origins = [frontend_origin, "http://127.0.0.1:5173"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -68,7 +66,7 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> Clerk
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
 
     token = authorization.split(" ", 1)[1].strip()
-    secret_key = secrets["CLERK_SECRET_KEY"]
+    secret_key = get_secret_value("CLERK_SECRET_KEY")
     if not secret_key:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="CLERK_SECRET_KEY is not configured")
 
@@ -93,8 +91,8 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> Clerk
 def get_mcp_credentials():
     """Single source of truth for MCP env vars — avoids repeating getenv calls per endpoint."""
     return (
-        secrets["db_url"],
-        secrets["db_secret_key"],
+        get_secret_value("db_url") or get_secret_value("DATABASE_URL"),
+        get_secret_value("db_secret_key"),
     )
 
 
