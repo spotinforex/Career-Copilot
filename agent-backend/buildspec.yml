@@ -19,7 +19,4 @@ phases:
       - docker push 082846230743.dkr.ecr.us-east-2.amazonaws.com/career-copilot-backend:latest
 
       - echo Updating Lambda...
-      - aws lambda update-function-code \
-          --function-name career-copilot-backend \
-          --image-uri 082846230743.dkr.ecr.us-east-2.amazonaws.com/career-copilot-backend:latest \
-          --region us-east-2
+      - aws lambda update-function-code --function-name career-copilot-backend --image-uri 082846230743.dkr.ecr.us-east-2.amazonaws.com/career-copilot-backend:latest --region us-east-2
