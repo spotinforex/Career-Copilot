@@ -132,10 +132,20 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Mobile History Button */}
           <button
             onClick={onOpenHistory}
-            className="md:hidden p-1.5 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
-            title="History"
+            className="md:hidden p-1.5 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition cursor-pointer"
+            title="Conversation History"
           >
             <History className="h-4 w-4" />
+          </button>
+
+          {/* Mobile New Chat Button */}
+          <button
+            onClick={onNewSession}
+            className="md:hidden flex items-center gap-1 px-2 py-1.5 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/80 rounded-lg transition font-semibold text-xs cursor-pointer"
+            title="Start New Chat"
+          >
+            <Plus className="h-4 w-4 text-indigo-600" />
+            <span className="text-[11px] font-bold">New</span>
           </button>
 
           {/* Upload Resume Button */}

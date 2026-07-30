@@ -9,6 +9,136 @@ interface ResumeWorkspaceProps {
   activeRoleTag: string;
 }
 
+// Helper to safely parse experience & project items from any backend JSON structure
+function extractExperiences(content: any): Array<{ title: string; subtitle?: string; description: string }> {
+  const rawList =
+    content.experience ||
+    content.experiences ||
+    content.projects ||
+    content.work_experience ||
+    content['Key Projects & Experience'] ||
+    [];
+
+  if (!Array.isArray(rawList)) return [];
+
+  return rawList.map((item: any, idx: number) => {
+    if (typeof item === 'string') {
+      return { title: `Experience #${idx + 1}`, description: item };
+    }
+
+    if (typeof item === 'object' && item !== null) {
+      const title =
+        item.title ||
+        item.Title ||
+        item.role ||
+        item.Role ||
+        item.name ||
+        item.Name ||
+        item.position ||
+        item.Position ||
+        item.project ||
+        item.project_name ||
+        item.company ||
+        item.Company ||
+        `Project / Role #${idx + 1}`;
+
+      const subtitle =
+        item.company ||
+        item.Company ||
+        item.organization ||
+        item.dates ||
+        item.years ||
+        item.period ||
+        item.date ||
+        undefined;
+
+      let description =
+        item.description ||
+        item.Description ||
+        item.details ||
+        item.Details ||
+        item.summary ||
+        item.Summary ||
+        item.responsibilities ||
+        item.highlights ||
+        item.bullet_points ||
+        item.bullets;
+
+      if (Array.isArray(description)) {
+        description = description.join('\n• ');
+      } else if (typeof description === 'object' && description !== null) {
+        description = JSON.stringify(description);
+      } else if (!description) {
+        // Fallback: collect any remaining string values in the object that aren't the title
+        const otherValues = Object.entries(item)
+          .filter(([k, v]) => typeof v === 'string' && v !== title && v !== subtitle)
+          .map(([k, v]) => `${k}: ${v}`);
+        description = otherValues.length > 0 ? otherValues.join('\n') : '';
+      }
+
+      return {
+        title: String(title),
+        subtitle: subtitle ? String(subtitle) : undefined,
+        description: String(description),
+      };
+    }
+
+    return { title: `Item #${idx + 1}`, description: String(item) };
+  });
+}
+
+// Helper to safely parse education items
+function extractEducation(content: any): Array<{ degree: string; institution: string; years?: string; relevant_coursework?: string[] }> {
+  const rawList =
+    content.education ||
+    content.educations ||
+    content.academic ||
+    content['Education'] ||
+    [];
+
+  if (!Array.isArray(rawList)) return [];
+
+  return rawList.map((item: any, idx: number) => {
+    if (typeof item === 'string') {
+      return { degree: item, institution: 'Academic History' };
+    }
+
+    if (typeof item === 'object' && item !== null) {
+      const degree =
+        item.degree ||
+        item.Degree ||
+        item.title ||
+        item.name ||
+        item.field ||
+        `Education #${idx + 1}`;
+
+      const institution =
+        item.institution ||
+        item.Institution ||
+        item.school ||
+        item.School ||
+        item.university ||
+        '';
+
+      const years = item.years || item.Years || item.date || item.dates || item.period;
+
+      let coursework: string[] | undefined = undefined;
+      if (Array.isArray(item.relevant_coursework)) coursework = item.relevant_coursework;
+      else if (Array.isArray(item.coursework)) coursework = item.coursework;
+      else if (Array.isArray(item.courses)) coursework = item.courses;
+
+      return {
+        degree: String(degree),
+        institution: String(institution),
+        years: years ? String(years) : undefined,
+        relevant_coursework: coursework,
+      };
+    }
+
+    return { degree: String(item), institution: '' };
+  });
+}
+
 export const ResumeWorkspace: React.FC<ResumeWorkspaceProps> = ({
   resumeData,
   onOpenUpload,
@@ -29,7 +159,7 @@ export const ResumeWorkspace: React.FC<ResumeWorkspaceProps> = ({
         </p>
         <button
           onClick={onOpenUpload}
-          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-sm transition flex items-center gap-2"
+          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-sm transition flex items-center gap-2 cursor-pointer"
         >
           <Sparkles className="h-4 w-4" />
           Upload Resume Now
@@ -39,29 +169,37 @@ export const ResumeWorkspace: React.FC<ResumeWorkspaceProps> = ({
   }
 
   const content: ResumeContent = resumeData.content;
-  const bioList = content['Bio Info'] || [];
+  const bioList = content['Bio Info'] || (content as any).bio_info || [];
 
   // Parse bio key-values from string array e.g. "Name: Praisejah Nwabeke"
   const bioMap: Record<string, string> = {};
-  bioList.forEach((item) => {
-    const parts = item.split(': ');
-    if (parts.length >= 2) {
-      bioMap[parts[0].toLowerCase()] = parts.slice(1).join(': ');
-    } else {
-      bioMap['info'] = item;
-    }
-  });
+  if (Array.isArray(bioList)) {
+    bioList.forEach((item) => {
+      if (typeof item === 'string') {
+        const parts = item.split(': ');
+        if (parts.length >= 2) {
+          bioMap[parts[0].toLowerCase()] = parts.slice(1).join(': ');
+        } else {
+          bioMap['info'] = item;
+        }
+      }
+    });
+  }
 
-  const name = bioMap['name'] || 'Candidate Profile';
-  const title = bioMap['title'] || activeRoleTag;
-  const location = bioMap['location'];
-  const phone = bioMap['phone'];
-  const email = bioMap['email'];
-  const github = bioMap['github'];
-  const linkedin = bioMap['linkedin'];
+  const name = bioMap['name'] || (content as any).name || 'Candidate Profile';
+  const title = bioMap['title'] || (content as any).title || activeRoleTag;
+  const location = bioMap['location'] || (content as any).location;
+  const phone = bioMap['phone'] || (content as any).phone;
+  const email = bioMap['email'] || (content as any).email;
+  const github = bioMap['github'] || (content as any).github;
+  const linkedin = bioMap['linkedin'] || (content as any).linkedin;
 
-  const filteredSkills = (content.skills || []).filter((sk) =>
-    sk.toLowerCase().includes(skillSearch.toLowerCase())
+  const experiences = extractExperiences(content);
+  const educationList = extractEducation(content);
+  const summaryText = content.summary || (content as any).Executive_Summary || (content as any).bio;
+
+  const filteredSkills = (content.skills || (content as any).Skills || []).filter((sk: any) =>
+    typeof sk === 'string' && sk.toLowerCase().includes(skillSearch.toLowerCase())
   );
 
   return (
@@ -200,32 +338,41 @@ export const ResumeWorkspace: React.FC<ResumeWorkspaceProps> = ({
             </div>
 
             {/* Executive Summary */}
-            {content.summary && (
+            {summaryText && (
               <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-1.5">
                   <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
                   Executive Summary
                 </h4>
-                <p className="text-xs text-slate-700 leading-relaxed">{content.summary}</p>
+                <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">{summaryText}</p>
               </div>
             )}
 
             {/* Experience Timeline */}
-            {content.experience && content.experience.length > 0 && (
+            {experiences.length > 0 && (
               <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
                   <Briefcase className="h-3.5 w-3.5 text-indigo-600" />
-                  Key Projects & Experience ({content.experience.length})
+                  Key Projects & Experience ({experiences.length})
                 </h4>
                 <div className="space-y-3 divide-y divide-slate-100">
-                  {content.experience.map((exp, idx) => (
+                  {experiences.map((exp, idx) => (
                     <div key={idx} className={idx > 0 ? 'pt-3' : ''}>
-                      <h5 className="text-xs font-bold text-slate-900 flex items-center justify-between">
-                        <span>{exp.title}</span>
-                      </h5>
-                      <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                        {exp.description}
-                      </p>
+                      <div className="flex items-start justify-between gap-2">
+                        <h5 className="text-xs font-bold text-slate-900 leading-snug">
+                          {exp.title}
+                        </h5>
+                        {exp.subtitle && (
+                          <span className="text-[11px] font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded shrink-0">
+                            {exp.subtitle}
+                          </span>
+                        )}
+                      </div>
+                      {exp.description && (
+                        <p className="text-xs text-slate-600 mt-1.5 leading-relaxed whitespace-pre-line">
+                          {exp.description}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -233,19 +380,19 @@ export const ResumeWorkspace: React.FC<ResumeWorkspaceProps> = ({
             )}
 
             {/* Education & Academic */}
-            {content.education && content.education.length > 0 && (
+            {educationList.length > 0 && (
               <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
                   <GraduationCap className="h-3.5 w-3.5 text-indigo-600" />
                   Education
                 </h4>
-                {content.education.map((edu, idx) => (
+                {educationList.map((edu, idx) => (
                   <div key={idx} className="space-y-1">
                     <div className="flex items-center justify-between text-xs font-bold text-slate-900">
                       <span>{edu.degree}</span>
                       {edu.years && <span className="text-[11px] font-normal text-slate-500">{edu.years}</span>}
                     </div>
-                    <p className="text-xs text-indigo-700 font-medium">{edu.institution}</p>
+                    {edu.institution && <p className="text-xs text-indigo-700 font-medium">{edu.institution}</p>}
                     {edu.relevant_coursework && edu.relevant_coursework.length > 0 && (
                       <div className="pt-1.5 flex flex-wrap gap-1">
                         {edu.relevant_coursework.map((course, cIdx) => (
