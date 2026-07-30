@@ -91,7 +91,7 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> Clerk
 def get_mcp_credentials():
     """Single source of truth for MCP env vars — avoids repeating getenv calls per endpoint."""
     return (
-        get_secret_value("db_url") or get_secret_value("DATABASE_URL"),
+        get_secret_value("db_url"),
         get_secret_value("db_secret_key"),
     )
 
