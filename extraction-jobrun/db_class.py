@@ -261,6 +261,9 @@ class CareerCopilotDB:
 
             return resume
     
+    def get_bio_data(self, user_id: str):
+            return self.fetch_one("bio_data", where={"user_id": user_id})
+    
     def upsert_bio_data(self, user_id: str, **fields):
             """Insert or update the user's single bio_data row."""
             existing = self.get_bio_data(user_id)

@@ -31,13 +31,31 @@ model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
 
 def handler(event, context):
-    logging.info("Event Recieved, Process Intialized")
+    logging.info("Event Received, Process Initialized")
+
     for record in event["Records"]:
-        msg = json.loads(record["body"])
-        facts = extract_facts(msg["user_msg"], msg["assistant_msg"])
-        if not facts:
+        try:
+            msg = json.loads(record["body"])
+
+            user_id = msg.get("user_id")
+            user_msg = msg.get("user_msg")
+            assistant_msg = msg.get("assistant_msg")
+            conversation_id = msg.get("conversation_id") or msg.get("session_id")
+
+            if not user_id or not user_msg or not assistant_msg:
+                logging.warning(f"Skipping malformed message, missing required fields: {msg}")
+                continue
+
+            facts = extract_facts(user_msg, assistant_msg)
+            if not facts:
+                continue
+
+            write_facts(user_id, conversation_id, facts)
+
+        except Exception as exc:
+            logging.error(f"Failed to process record: {exc}", exc_info=True)
             continue
-        write_facts(msg["user_id"], msg["conversation_id"], facts)
+
     logging.info("Event Processed, Process Completed Successfully")
 
 def extract_facts(user_msg, assistant_msg):
