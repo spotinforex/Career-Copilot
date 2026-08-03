@@ -44,7 +44,7 @@ The shared CockroachDB backend is used for both direct application state and AI 
 The three-service design keeps frontend UX, backend request handling, and background extraction separate.
 This improves scalability, reduces latency in the live experience, and allows AI memory workflows to evolve independently.
 
-![Architecture Diagram](img/Archi diagram.png)
+![Architecture Diagram](img/Archi_diagram.png)
 
 ## Links
 
